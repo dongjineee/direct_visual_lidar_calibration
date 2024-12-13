@@ -1,0 +1,65 @@
+FROM nvidia/cuda:12.1.0-devel-ubuntu20.04 as dev
+
+LABEL maintainer="dongjincho"
+LABEL contact="d22g66@naver.com"
+LABEL description="cali"
+
+# ROS Version
+ARG ROS_VERSION="noetic"
+ENV ROS_VERSION=${ROS_VERSION}
+
+# Disable dialog frontend
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Select shell
+SHELL ["/bin/bash", "-c"]
+
+# Install ROS
+RUN apt update \
+    && apt install --no-install-recommends -y curl gnupg lsb-release git build-essential nano \
+    && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list \
+    && apt update \
+    && apt install --no-install-recommends -y ros-${ROS_VERSION}-desktop-full \
+    && apt install --no-install-recommends -y python3-pip python3-venv python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool python3-catkin-tools python3-osrf-pycommon \
+    && rm -f "/etc/ros/rosdep/sources.list.d/20-default.list" \
+    && rosdep init \
+    && rosdep update \
+    && echo "source /opt/ros/${ROS_VERSION}/setup.bash" >> ~/.bashrc
+
+# Install Python packages
+RUN python3 -m venv /root/env --system-site-packages \
+    && /root/env/bin/pip install --upgrade pip \
+    && /root/env/bin/pip install --no-cache-dir torch==2.1.0 torchvision --extra-index-url https://download.pytorch.org/whl/cu121 \
+    && /root/env/bin/pip install --upgrade matplotlib
+
+# Install dependencies
+RUN sudo apt update \
+    && sudo apt install --no-install-recommends -y libomp-dev libboost-all-dev libglm-dev libglfw3-dev libpng-dev libjpeg-dev \
+    && sudo apt install --no-install-recommends -y libgoogle-glog-dev libsuitesparse-dev libmetis-dev \
+    && mkdir -p /root/depen \
+    && cd /root/depen \
+    && git clone https://github.com/borglab/gtsam \
+    && cd gtsam && git checkout 4.2a9 \
+    && mkdir build && cd build \
+    && cmake .. -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DGTSAM_BUILD_TESTS=OFF -DGTSAM_WITH_TBB=OFF -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF \
+    && make -j$(nproc) && make install \
+    && cd /root/depen \
+    && git clone --recurse-submodules https://github.com/ceres-solver/ceres-solver \
+    && cd ceres-solver \
+    && git checkout e47a42c2957951c9fafcca9995d9927e15557069 \
+    && mkdir build && cd build \
+    && cmake .. -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF -DUSE_CUDA=OFF \
+    && make -j$(nproc) && make install \
+    && cd /root/depen \
+    && git clone https://github.com/koide3/iridescence --recursive \
+    && mkdir iridescence/build && cd iridescence/build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release \
+    && make -j$(nproc) && make install \
+    && cd /root/depen \
+    && git clone https://github.com/magicleap/SuperGluePretrainedNetwork.git \
+    && /root/env/bin/pip install numpy opencv-python matplotlib \
+    && echo 'export PYTHONPATH=$PYTHONPATH:/root/depen/SuperGluePretrainedNetwork' >> ~/.bashrc \
+    && sudo apt update \
+    && sudo apt install -y libfmt-dev \
+    && sudo apt install -y python3-tk

@@ -1,0 +1,8 @@
+services:
+  cali:
+    extends:
+      file: docker-compose.yaml
+      service: cali
+    environment:
+     - NVIDIA_VISIBLE_DEVICES=all
+    runtime: nvidia

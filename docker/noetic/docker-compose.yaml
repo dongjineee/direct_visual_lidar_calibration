@@ -1,0 +1,15 @@
+services:
+  cali:
+    build:
+      context: ..
+      dockerfile: noetic/Dockerfile_cali
+      target: dev
+    image: koide:00
+    stdin_open: true
+    tty: true
+    network_mode: "host"
+    volumes:
+      - ../../../direct_visual_lidar_calibration:/root/cali_ws/src/direct_visual_lidar_calibration
+    environment:
+      - ROS_IP=127.0.0.1
+    command: "/bin/bash"

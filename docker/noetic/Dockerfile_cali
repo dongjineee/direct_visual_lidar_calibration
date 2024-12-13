@@ -1,0 +1,29 @@
+FROM dongjineee/koide_cali_12_1:03 as dev
+
+LABEL maintainer="dongjincho"
+LABEL contact="d22g66@naver.com"
+LABEL description="cali"
+
+# ROS Version
+ARG ROS_VERSION="noetic"
+ENV ROS_VERSION=${ROS_VERSION}
+
+# Disable dialog frontend
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Select shell
+SHELL ["/bin/bash", "-c"]
+
+# Setup calibration workspace
+RUN mkdir -p /root/cali_ws/src \
+    && cd /root/cali_ws/src \
+    && source /opt/ros/${ROS_VERSION}/setup.bash \ 
+    && cd /root/cali_ws 
+
+RUN echo "source /root/env/bin/activate" >> ~/.bashrc
+# Cleanup
+RUN rm -rf /var/lib/apt/lists/* && apt clean
+
+# Final configuration
+CMD ["/bin/bash"]
+WORKDIR /root/cali_ws
